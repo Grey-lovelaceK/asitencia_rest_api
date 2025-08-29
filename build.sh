@@ -1,4 +1,4 @@
-at > build.sh << 'EOF'
+cat > build.sh << 'EOF'
 #!/usr/bin/env bash
 set -o errexit
 
