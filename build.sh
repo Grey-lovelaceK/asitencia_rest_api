@@ -2,7 +2,8 @@ cat > build.sh << 'EOF'
 #!/usr/bin/env bash
 set -o errexit
 
-pip install -r requirements.txt
+# Usar Poetry en lugar de pip
+poetry install --only=main
 
 python manage.py collectstatic --no-input
 
@@ -18,13 +19,6 @@ else:
 "
 EOF
 
-# Darle permisos
-git update-index --chmod=+x build.sh
-
-# Verificar que tiene todo el contenido
-cat build.sh
-
-# Commit y push
 git add build.sh
-git commit -m "Fix build.sh with complete content including superuser creation"
+git commit -m "Use poetry install instead of pip"
 git push
