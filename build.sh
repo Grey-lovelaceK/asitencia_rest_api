@@ -1,12 +1,10 @@
-cat > build.sh << 'EOF'
 #!/usr/bin/env bash
 set -o errexit
 
-# Usar Poetry en lugar de pip
-poetry install --only=main
+# Instalar TODAS las dependencias (no solo main)
+poetry install
 
 python manage.py collectstatic --no-input
-
 python manage.py migrate
 
 python manage.py shell -c "
@@ -17,8 +15,3 @@ if not User.objects.filter(username='admin').exists():
 else:
     print('Superusuario ya existe')
 "
-EOF
-
-git add build.sh
-git commit -m "Use poetry install instead of pip"
-git push
