@@ -1,0 +1,31 @@
+cat > pyproject.toml << 'EOF'
+[tool.poetry]
+name = "asistencia-crud"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+asgiref = "3.9.1"
+brotli = "1.1.0"
+dj-database-url = "3.0.1"
+django = "5.2.5"
+django-cors-headers = "4.3.1"
+djangorestframework = "3.16.1"
+gunicorn = "23.0.0"
+packaging = "25.0"
+psycopg2-binary = "2.9.10"
+python-decouple = "3.8"
+sqlparse = "0.5.3"
+tzdata = "2025.2"
+whitenoise = "6.9.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+EOF
+
+git add pyproject.toml
+git commit -m "Add pyproject.toml for Poetry"
+git push
