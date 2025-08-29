@@ -1,12 +1,12 @@
-# Editar el archivo para agregar la primera línea
-echo '#!/usr/bin/env bash
+at > build.sh << 'EOF'
+#!/usr/bin/env bash
 set -o errexit
 
 pip install -r requirements.txt
 
 python manage.py collectstatic --no-input
 
-python manage.py migrate' > build.sh
+python manage.py migrate
 
 python manage.py shell -c "
 from django.contrib.auth.models import User
@@ -16,8 +16,15 @@ if not User.objects.filter(username='admin').exists():
 else:
     print('Superusuario ya existe')
 "
+EOF
 
-# Commit los cambios
+# Darle permisos
+git update-index --chmod=+x build.sh
+
+# Verificar que tiene todo el contenido
+cat build.sh
+
+# Commit y push
 git add build.sh
-git commit -m "Add shebang to build.sh"
+git commit -m "Fix build.sh with complete content including superuser creation"
 git push
