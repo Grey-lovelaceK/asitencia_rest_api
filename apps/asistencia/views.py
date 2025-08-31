@@ -32,10 +32,10 @@ def check_authenticated(request):
         return False, None
 
 @api_view(['POST'])
-@permission_classes([AllowAny])  # ✅ Cambiar a AllowAny
+@permission_classes([AllowAny])  
 def marcar_entrada_view(request):
     try:
-        # ✅ Verificar autenticación por sesión
+  
         is_auth, usuario = check_authenticated(request)
         if not is_auth:
             return Response({'error': 'Debes estar logueado'}, 

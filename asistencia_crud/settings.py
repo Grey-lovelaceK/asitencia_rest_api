@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'apps.usuarios',
     'apps.asistencia',
     'rest_framework',
+    'drf_yasg',
     'corsheaders',
 ]
 
@@ -87,7 +88,7 @@ WSGI_APPLICATION = 'asistencia_crud.wsgi.application'
 
 DATABASES = {
     'default': dj_database_url.config(
-        default='squlite:///db.sqlite3',
+        default='sqlite:///db.sqlite3',
         conn_max_age=600
     )
 }
@@ -147,6 +148,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    # 'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
 }
 
 CORS_ALLOWED_ORIGINS = [
@@ -165,3 +167,22 @@ SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_SECURE = False
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Session': {
+            'type': 'apiKey',
+            'name': 'sessionid',      # ← Nombre de la cookie de sesión
+            'in': 'cookie'            # ← Donde se envía (cookie)
+        }
+    },
+    'USE_SESSION_AUTH': True,
+    'LOGIN_URL': '/api/usuarios/auth/login/',    # ← Tu endpoint personalizado
+    'LOGOUT_URL': '/api/usuarios/auth/logout/',  # ← Tu endpoint personalizado
+}
+
+# Para desarrollo, permite que la documentación sea accesible
+if DEBUG:
+    SWAGGER_SETTINGS['PERMISSIONS'] = {
+        'AllowAny': 'rest_framework.permissions.AllowAny',
+    }
