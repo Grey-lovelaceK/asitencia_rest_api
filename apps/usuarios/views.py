@@ -12,20 +12,15 @@ from .serializers import UsuarioSerializer, UsuarioCreateSerializer, UsuarioUpda
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.filter(activo=True)
 
-    def get_serializer_class(self): # type: ignore
+    def get_serializer_class(self): #type: ignore
         if self.action == 'create':
             return UsuarioCreateSerializer
         elif self.action in ['update', 'partial_update']:
             return UsuarioUpdateSerializer
         return UsuarioSerializer
-    
-    def get_permissions(self):
 
-        permission_classes = [AllowAny]
-        return [permission() for permission in permission_classes]
-    
     def check_authenticated(self, request):
-        user_id = request.session.get('user_id')
+        user_id = request.session.get('_auth_user_id')
         if not user_id:
             return False, None
         try:
@@ -33,107 +28,77 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             return True, usuario
         except Usuario.DoesNotExist:
             return False, None
-    
+
     def check_admin_permission(self, request):
         is_auth, usuario = self.check_authenticated(request)
-        if not is_auth:
-            return False
-        return usuario.es_administrador() #type: ignore
-        
+        return is_auth and usuario.rol == 'administrador' # type: ignore
+
+    def list(self, request, *args, **kwargs):
+        if not self.check_admin_permission(request):
+            return Response({'error': 'Solo administradores pueden ver la lista de usuarios'}, status=status.HTTP_403_FORBIDDEN)
+        return super().list(request, *args, **kwargs)
+
     def create(self, request, *args, **kwargs):
-        # Verificar que esté autenticado
-        is_auth, usuario = self.check_authenticated(request)
-        if not is_auth:
-            return Response({'error': 'Debes estar logueado'}, 
-                          status=status.HTTP_401_UNAUTHORIZED)
-        
-        # Verificar que sea admin
         if not self.check_admin_permission(request):
-            return Response({'error': 'Solo administradores pueden crear usuarios'}, 
-                          status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'Solo administradores pueden crear usuarios'}, status=status.HTTP_403_FORBIDDEN)
         return super().create(request, *args, **kwargs)
-    
+
     def update(self, request, *args, **kwargs):
-        is_auth, usuario = self.check_authenticated(request)
-        if not is_auth:
-            return Response({'error': 'Debes estar logueado'}, 
-                          status=status.HTTP_401_UNAUTHORIZED)
-                          
         if not self.check_admin_permission(request):
-            return Response({'error': 'Solo administradores pueden actualizar usuarios'}, 
-                          status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'Solo administradores pueden actualizar usuarios'}, status=status.HTTP_403_FORBIDDEN)
         return super().update(request, *args, **kwargs)
-    
+
     def destroy(self, request, *args, **kwargs):
-        is_auth, usuario = self.check_authenticated(request)
-        if not is_auth:
-            return Response({'error': 'Debes estar logueado'}, 
-                          status=status.HTTP_401_UNAUTHORIZED)
-                          
         if not self.check_admin_permission(request):
-            return Response({'error': 'Solo administradores pueden eliminar usuarios'}, 
-                          status=status.HTTP_403_FORBIDDEN)
-    
-        usuario_obj = self.get_object()   
+            return Response({'error': 'Solo administradores pueden eliminar usuarios'}, status=status.HTTP_403_FORBIDDEN)
+        usuario_obj = self.get_object()
         usuario_obj.activo = False
         usuario_obj.save()
         return Response({'success': 'usuario desactivado correctamente'})
-    
-def list(self, request, *args, **kwargs):
-    if not request.user.is_authenticated:
-        return Response({'error': 'Debes estar logueado'}, status=status.HTTP_401_UNAUTHORIZED)
-    
-    if request.user.rol != 'administrador':
-        return Response({'error': 'Solo administradores pueden ver la lista de usuarios'}, status=status.HTTP_403_FORBIDDEN)
-    
-    return super().list(request, *args, **kwargs) #type: ignore
-
 
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
-    serializer = LoginSerializer(data=request.data)
-    
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    email = serializer.validated_data.get('email')  # type: ignore
-    password = serializer.validated_data.get('password')  # type: ignore
-    
-    if not email or not password:
-        return Response({'error': 'Email y password son requeridos'}, 
-                        status=status.HTTP_400_BAD_REQUEST)
-    
     try:
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        email = serializer.validated_data.get('email') # type: ignore
+        password = serializer.validated_data.get('password') # type: ignore
+
         usuario = Usuario.objects.get(email=email, activo=True)
-        if check_password(password, usuario.password):
-            # ⚡ Aquí usamos el sistema de autenticación nativo de Django
-            login(request, usuario) # type: ignore
 
-            return Response({
-                'success': True,
-                'usuario': UsuarioSerializer(usuario).data
-            })
-        else:
-            return Response({'error': 'Credenciales inválidas'}, 
-                            status=status.HTTP_401_UNAUTHORIZED)
+        if not check_password(password, usuario.password):
+            return Response({'error': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # ⚡ Login con sesiones Django
+        login(request, usuario) # type: ignore
+
+        return Response({
+            'success': True,
+            'usuario': UsuarioSerializer(usuario).data
+        })
+
     except Usuario.DoesNotExist:
-        return Response({'error': 'Usuario no encontrado'}, 
-                        status=status.HTTP_404_NOT_FOUND)
-
-
+        return Response({'error': 'Usuario no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        # 🔹 Para debug y siempre responder JSON
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def logout_view(request):
-    request.session.flush()
-    return Response({'success': True})
-
+    try:
+        logout(request)
+        return Response({'success': True})
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def check_session_view(request):
-    if request.user.is_authenticated:
-        return Response({'logged_in': True})
-    return Response({'logged_in': False}, status=status.HTTP_401_UNAUTHORIZED)
+    try:
+        return Response({'logged_in': request.user.is_authenticated})
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
