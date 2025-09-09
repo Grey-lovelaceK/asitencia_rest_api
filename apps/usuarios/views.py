@@ -1,5 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.authentication import BasicAuthentication
+from rest_framework.decorators import authentication_classes
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -50,6 +52,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@authentication_classes([BasicAuthentication]) 
 def login_view(request):
     serializer = LoginSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
