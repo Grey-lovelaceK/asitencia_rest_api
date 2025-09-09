@@ -173,6 +173,9 @@ else:
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_SAMESITE = "None"
 
+
+
+
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {
         'Session': {
@@ -191,3 +194,5 @@ if DEBUG:
     SWAGGER_SETTINGS['PERMISSIONS'] = {
         'AllowAny': 'rest_framework.permissions.AllowAny',
     }
+    
+AUTH_USER_MODEL = 'usuarios.Usuario'
