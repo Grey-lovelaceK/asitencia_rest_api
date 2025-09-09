@@ -1,5 +1,6 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes
+from django.utils.decorators import method_decorator
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.decorators import authentication_classes
 from django.views.decorators.csrf import csrf_exempt
@@ -9,11 +10,12 @@ from django.contrib.auth import authenticate, login, logout
 from .models import Usuario
 from .serializers import UsuarioSerializer, UsuarioCreateSerializer, UsuarioUpdateSerializer, LoginSerializer
 
-# ----------------- USUARIOS -----------------
+
+@method_decorator(csrf_exempt, name='dispatch')
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.filter(activo=True)
     serializer_class = UsuarioSerializer
-    permission_classes = [IsAuthenticated]  # todos los endpoints requieren login
+    permission_classes = [IsAuthenticated]  
 
     def get_serializer_class(self): #type: ignore
         if self.action == 'create':
@@ -76,6 +78,7 @@ def login_view(request):
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@authentication_classes([BasicAuthentication])
 def logout_view(request):
     logout(request)
     return Response({'success': True})
@@ -83,5 +86,6 @@ def logout_view(request):
 @csrf_exempt
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@authentication_classes([BasicAuthentication])
 def check_session_view(request):
     return Response({'logged_in': True, 'usuario': UsuarioSerializer(request.user).data})
