@@ -1,4 +1,5 @@
 from rest_framework import viewsets, status
+from django.contrib.auth import login as django_login
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -98,31 +99,28 @@ def login_view(request):
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    email = serializer.validated_data.get('email') #type: ignore
-    password = serializer.validated_data.get('password') #type: ignore
+    email = serializer.validated_data.get('email')  # type: ignore
+    password = serializer.validated_data.get('password')  # type: ignore
     
     if not email or not password:
         return Response({'error': 'Email y password son requeridos'}, 
-                      status=status.HTTP_400_BAD_REQUEST)
+                        status=status.HTTP_400_BAD_REQUEST)
     
     try:
         usuario = Usuario.objects.get(email=email, activo=True)
         if check_password(password, usuario.password):
-            request.session['user_id'] = usuario.pk
-            request.session.modified = True
-            request.session.save()
+            django_login(request, usuario) # type: ignore
             
             return Response({
                 'success': True,
-                'usuario': UsuarioSerializer(usuario).data,
-                'session_id': request.session.session_key  
+                'usuario': UsuarioSerializer(usuario).data
             })
         else:
             return Response({'error': 'Credenciales inválidas'}, 
-                          status=status.HTTP_401_UNAUTHORIZED)
+                            status=status.HTTP_401_UNAUTHORIZED)
     except Usuario.DoesNotExist:
         return Response({'error': 'Usuario no encontrado'}, 
-                      status=status.HTTP_404_NOT_FOUND)
+                        status=status.HTTP_404_NOT_FOUND)
         
 @api_view(['POST'])
 @permission_classes([AllowAny])
