@@ -8,16 +8,23 @@ python manage.py migrate
 
 python manage.py shell -c "
 from apps.usuarios.models import Usuario
+from django.contrib.auth.hashers import make_password
 
-# Crear usuario administrador usando el manager correcto
-if not Usuario.objects.filter(email='admin@empresa.com').exists():
-    Usuario.objects.create_superuser(
-        email='admin@empresa.com',
-        password='Admin123!',
-        nombre='Administrador',
-        apellido='Principal'
-    )
-    print('✅ Usuario administrador creado para API')
+usuario, created = Usuario.objects.get_or_create(
+    email='admin@empresa.com',
+    defaults={
+        'nombre': 'Administrador',
+        'apellido': 'Principal',
+        'rol': 'administrador',
+        'activo': True,
+        'password': make_password('Admin123!')
+    }
+)
+
+if not created:
+    usuario.password = make_password('Admin123!')
+    usuario.save()
+    print('🔄 Usuario administrador existente actualizado con nueva contraseña')
 else:
-    print('⚠️ Usuario administrador ya existe')
+    print('✅ Usuario administrador creado')
 "
