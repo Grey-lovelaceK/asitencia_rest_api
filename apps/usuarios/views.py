@@ -99,8 +99,8 @@ def login_view(request):
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    email = serializer.validated_data.get('email')  # type: ignore
-    password = serializer.validated_data.get('password')  # type: ignore
+    email = serializer.validated_data.get('email') # type: ignore
+    password = serializer.validated_data.get('password') # type: ignore
     
     if not email or not password:
         return Response({'error': 'Email y password son requeridos'}, 
@@ -109,14 +109,15 @@ def login_view(request):
     try:
         usuario = Usuario.objects.get(email=email, activo=True)
         if check_password(password, usuario.password):
-            # ⚡ Usamos sesión manual
+            # ⚡ Usamos el sistema de sesiones de Django
             request.session['user_id'] = usuario.pk
-            request.session.modified = True
+            request.session.save()  # 🔑 fuerza creación de session_key
+            session_key = request.session.session_key
             
             return Response({
                 'success': True,
                 'usuario': UsuarioSerializer(usuario).data,
-                'session_id': request.session.session_key
+                'session_id': session_key  # ahora no será null
             })
         else:
             return Response({'error': 'Credenciales inválidas'}, 
@@ -124,6 +125,7 @@ def login_view(request):
     except Usuario.DoesNotExist:
         return Response({'error': 'Usuario no encontrado'}, 
                         status=status.HTTP_404_NOT_FOUND)
+
 
         
 @api_view(['POST'])
