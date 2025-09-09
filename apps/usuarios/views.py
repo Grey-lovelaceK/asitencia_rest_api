@@ -1,5 +1,6 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
@@ -46,7 +47,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         usuario_obj.save()
         return Response({'success': 'Usuario desactivado correctamente'})
 
-# ----------------- LOGIN -----------------
+@csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
@@ -68,14 +69,15 @@ def login_view(request):
         'usuario': UsuarioSerializer(user).data
     })
 
-# ----------------- LOGOUT -----------------
+
+@csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def logout_view(request):
     logout(request)
     return Response({'success': True})
 
-# ----------------- CHECK SESSION -----------------
+@csrf_exempt
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def check_session_view(request):
