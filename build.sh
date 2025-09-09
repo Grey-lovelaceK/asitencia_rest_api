@@ -7,7 +7,7 @@ python manage.py collectstatic --no-input
 python manage.py migrate
 
 python manage.py shell -c "
-ffrom apps.usuarios.models import Usuario
+from apps.usuarios.models import Usuario
 
 email = 'greyc9404@gmail.com'
 password = 'admin123'
