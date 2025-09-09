@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status
 from django.contrib.auth import login as django_login
 from rest_framework.decorators import api_view, permission_classes
+from django.contrib.auth import login
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.hashers import check_password
@@ -78,17 +79,15 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         usuario_obj.save()
         return Response({'success': 'usuario desactivado correctamente'})
     
-    def list(self, request, *args, **kwargs):
-        is_auth, usuario = self.check_authenticated(request)
-        if not is_auth:
-            return Response({'error': 'Debes estar logueado'}, 
-                          status=status.HTTP_401_UNAUTHORIZED)
+def list(self, request, *args, **kwargs):
+    if not request.user.is_authenticated:
+        return Response({'error': 'Debes estar logueado'}, status=status.HTTP_401_UNAUTHORIZED)
     
-        if not self.check_admin_permission(request):
-            return Response({'error': 'Solo administradores pueden ver la lista de usuarios'}, 
-                          status=status.HTTP_403_FORBIDDEN)
-            
-        return super().list(request, *args, **kwargs)
+    if request.user.rol != 'administrador':
+        return Response({'error': 'Solo administradores pueden ver la lista de usuarios'}, status=status.HTTP_403_FORBIDDEN)
+    
+    return super().list(request, *args, **kwargs) #type: ignore
+
 
 
 @api_view(['POST'])
@@ -99,8 +98,8 @@ def login_view(request):
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    email = serializer.validated_data.get('email') # type: ignore
-    password = serializer.validated_data.get('password') # type: ignore
+    email = serializer.validated_data.get('email')  # type: ignore
+    password = serializer.validated_data.get('password')  # type: ignore
     
     if not email or not password:
         return Response({'error': 'Email y password son requeridos'}, 
@@ -109,15 +108,12 @@ def login_view(request):
     try:
         usuario = Usuario.objects.get(email=email, activo=True)
         if check_password(password, usuario.password):
-            # ⚡ Usamos el sistema de sesiones de Django
-            request.session['user_id'] = usuario.pk
-            request.session.save()  # 🔑 fuerza creación de session_key
-            session_key = request.session.session_key
-            
+            # ⚡ Aquí usamos el sistema de autenticación nativo de Django
+            login(request, usuario) # type: ignore
+
             return Response({
                 'success': True,
-                'usuario': UsuarioSerializer(usuario).data,
-                'session_id': session_key  # ahora no será null
+                'usuario': UsuarioSerializer(usuario).data
             })
         else:
             return Response({'error': 'Credenciales inválidas'}, 
