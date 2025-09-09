@@ -10,7 +10,7 @@ from .serializers import UsuarioSerializer, UsuarioCreateSerializer, UsuarioUpda
 class UsuarioViewSet(viewsets.ModelViewSet):
     queryset = Usuario.objects.filter(activo=True)
 
-    def get_serializer_class(self): #type: ignore
+    def get_serializer_class(self): # type: ignore
         if self.action == 'create':
             return UsuarioCreateSerializer
         elif self.action in ['update', 'partial_update']:

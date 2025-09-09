@@ -68,17 +68,17 @@ def marcar_entrada_view(request):
                       status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
-@permission_classes([AllowAny])  # ✅ Cambiar a AllowAny
+@permission_classes([AllowAny])  
 def marcar_salida_view(request):
-    # ✅ Usar la función helper consistente
+    
     is_auth, usuario = check_authenticated(request)
     if not is_auth:
         return Response({'error': 'Debes estar logueado'}, 
-                      status=status.HTTP_401_UNAUTHORIZED)
+                      status=status.HTTP_401_UNAUTHORIZED)  
     
     ultimo_registro = RegistroAsistencia.objects.filter(
         usuario=usuario
-    ).order_by('-fecha_hora').first()  # ✅ Agregar order_by para consistencia
+    ).order_by('-fecha_hora').first() 
     
     if not ultimo_registro or ultimo_registro.tipo_registro == 'salida':
         return Response({'error': 'Debes marcar entrada primero.'}, 
@@ -97,9 +97,8 @@ def marcar_salida_view(request):
     })
 
 @api_view(['GET'])
-@permission_classes([AllowAny])  # ✅ Cambiar a AllowAny
+@permission_classes([AllowAny])  
 def reporte_atrasos_view(request):
-    # ✅ Usar la función helper consistente
     is_auth, usuario = check_authenticated(request)
     if not is_auth:
         return Response({'error': 'Debes estar logueado'}, 
@@ -122,9 +121,8 @@ def reporte_atrasos_view(request):
     })
 
 @api_view(['GET'])
-@permission_classes([AllowAny])  # ✅ Cambiar a AllowAny
+@permission_classes([AllowAny])  
 def reporte_salidas_anticipadas_view(request):
-    # ✅ Usar la función helper consistente
     is_auth, usuario = check_authenticated(request)
     if not is_auth:
         return Response({'error': 'Debes estar logueado'}, 
@@ -147,9 +145,8 @@ def reporte_salidas_anticipadas_view(request):
     })
 
 @api_view(['GET'])
-@permission_classes([AllowAny])  # ✅ Cambiar a AllowAny
+@permission_classes([AllowAny])  
 def reporte_inasistencias_view(request):
-    # ✅ Usar la función helper consistente
     is_auth, usuario = check_authenticated(request)
     if not is_auth:
         return Response({'error': 'Debes estar logueado'}, 

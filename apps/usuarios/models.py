@@ -15,8 +15,8 @@ class Usuario(models.Model):
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_modificacion = models.DateTimeField(auto_now=True)
     
-    def __str__(self):
-        return f"{self.nombre} {self.apellido}"
+    # def __str__(self):
+    #     return f"{self.nombre} {self.apellido}"
     
     def es_administrador(self):
         return self.rol == 'administrador'

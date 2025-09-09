@@ -166,19 +166,19 @@ SESSION_COOKIE_AGE = 1209600  # 2 semanas
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_SECURE = False
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = None
 
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {
         'Session': {
             'type': 'apiKey',
-            'name': 'sessionid',      # ← Nombre de la cookie de sesión
-            'in': 'cookie'            # ← Donde se envía (cookie)
+            'name': 'sessionid',      
+            'in': 'cookie'            
         }
     },
     'USE_SESSION_AUTH': True,
-    'LOGIN_URL': '/api/usuarios/auth/login/',    # ← Tu endpoint personalizado
-    'LOGOUT_URL': '/api/usuarios/auth/logout/',  # ← Tu endpoint personalizado
+    'LOGIN_URL': '/api/usuarios/auth/login/',    
+    'LOGOUT_URL': '/api/usuarios/auth/logout/',  
 }
 
 # Para desarrollo, permite que la documentación sea accesible
