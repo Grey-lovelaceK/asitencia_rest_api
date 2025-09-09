@@ -53,10 +53,12 @@ def login_view(request):
     serializer = LoginSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
-    email = serializer.validated_data['email'] #type: ignore
-    password = serializer.validated_data['password'] #type: ignore
+    email = serializer.validated_data['email']  # type: ignore
+    password = serializer.validated_data['password']  # type: ignore
 
-    user = authenticate(request, email=email, password=password)
+    # 🔹 Aquí está el cambio
+    user = authenticate(request, username=email, password=password)
+
     if user is None:
         return Response({'error': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
 
