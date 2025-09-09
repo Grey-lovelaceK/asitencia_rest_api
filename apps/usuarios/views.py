@@ -131,3 +131,11 @@ def login_view(request):
 def logout_view(request):
     request.session.flush()
     return Response({'success': True})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def check_session_view(request):
+    if request.user.is_authenticated:
+        return Response({'logged_in': True})
+    return Response({'logged_in': False}, status=status.HTTP_401_UNAUTHORIZED)
