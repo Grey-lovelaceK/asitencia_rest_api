@@ -109,11 +109,14 @@ def login_view(request):
     try:
         usuario = Usuario.objects.get(email=email, activo=True)
         if check_password(password, usuario.password):
-            django_login(request, usuario) # type: ignore
+            # ⚡ Usamos sesión manual
+            request.session['user_id'] = usuario.pk
+            request.session.modified = True
             
             return Response({
                 'success': True,
-                'usuario': UsuarioSerializer(usuario).data
+                'usuario': UsuarioSerializer(usuario).data,
+                'session_id': request.session.session_key
             })
         else:
             return Response({'error': 'Credenciales inválidas'}, 
@@ -121,6 +124,7 @@ def login_view(request):
     except Usuario.DoesNotExist:
         return Response({'error': 'Usuario no encontrado'}, 
                         status=status.HTTP_404_NOT_FOUND)
+
         
 @api_view(['POST'])
 @permission_classes([AllowAny])
