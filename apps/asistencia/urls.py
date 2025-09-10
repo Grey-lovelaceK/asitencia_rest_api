@@ -12,4 +12,5 @@ urlpatterns = [
     path('reportes/atrasos/', views.reporte_atrasos_view, name='reporte-atrasos'),
     path('reportes/salidas-anticipadas/', views.reporte_salidas_anticipadas_view, name='reporte-salidas'),
     path('reportes/inasistencias/', views.reporte_inasistencias_view, name='reporte-inasistencias'),
+    path('todos-registros/', views.todos_registros_view, name='todos-registros'),
 ]
