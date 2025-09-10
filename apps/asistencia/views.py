@@ -1,7 +1,8 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.utils import timezone
 from datetime import datetime, time, date
 from .models import RegistroAsistencia
@@ -10,46 +11,30 @@ from apps.usuarios.models import Usuario
 
 class RegistroAsistenciaViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = RegistroAsistenciaSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]  # 🔹 JWT Authentication
     
-    queryset = RegistroAsistencia.objects.all()
-    
-    def get_queryset(self): #type: ignore
-        user_id = self.request.session.get('user_id')
-        if user_id:
-            return RegistroAsistencia.objects.filter(usuario_id=user_id)
-        return RegistroAsistencia.objects.none()
-
-def check_authenticated(request):
-
-    user_id = request.session.get('user_id')
-    if not user_id:
-        return False, None
-    try:
-        usuario = Usuario.objects.get(id=user_id, activo=True)
-        return True, usuario
-    except Usuario.DoesNotExist:
-        return False, None
+    def get_queryset(self): # type: ignore
+        # 🔹 Ahora usar request.user en lugar de session
+        return RegistroAsistencia.objects.filter(usuario=self.request.user)
 
 @api_view(['POST'])
-@permission_classes([AllowAny])  
+@permission_classes([IsAuthenticated])  # 🔹 Cambio de AllowAny a IsAuthenticated
 def marcar_entrada_view(request):
     try:
-  
-        is_auth, usuario = check_authenticated(request)
-        if not is_auth:
-            return Response({'error': 'Debes estar logueado'}, 
-                          status=status.HTTP_401_UNAUTHORIZED)
+        # 🔹 Ya no necesitas check_authenticated, request.user está disponible
+        usuario = request.user
         
-        print(f"Usuario autenticado: {usuario.email}")  # type: ignore
+        print(f"Usuario autenticado: {usuario.email}")
         
         ultimo_registro = RegistroAsistencia.objects.filter(
             usuario=usuario
         ).order_by('-fecha_hora').first()
         
         if ultimo_registro and ultimo_registro.tipo_registro == 'entrada':
-            return Response({'error': 'Ya tienes una entrada registrada. Debes marcar salida primero.'}, 
-                          status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'error': 'Ya tienes una entrada registrada. Debes marcar salida primero.'
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         registro = RegistroAsistencia.objects.create(
             usuario=usuario,
@@ -59,30 +44,28 @@ def marcar_entrada_view(request):
         return Response({
             'success': True,
             'mensaje': 'Entrada registrada correctamente',
-            'pk': registro.id, #type: ignore
+            'pk': registro.id, # type: ignore
             'fecha_hora': registro.fecha_hora
         }, status=status.HTTP_201_CREATED)
         
     except Exception as e:
-        return Response({'error': f'Error del servidor: {str(e)}'}, 
-                      status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({
+            'error': f'Error del servidor: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
-@permission_classes([AllowAny])  
+@permission_classes([IsAuthenticated])  # 🔹 Cambio de AllowAny a IsAuthenticated
 def marcar_salida_view(request):
-    
-    is_auth, usuario = check_authenticated(request)
-    if not is_auth:
-        return Response({'error': 'Debes estar logueado'}, 
-                      status=status.HTTP_401_UNAUTHORIZED)  
+    usuario = request.user  # 🔹 Directo desde request.user
     
     ultimo_registro = RegistroAsistencia.objects.filter(
         usuario=usuario
     ).order_by('-fecha_hora').first() 
     
     if not ultimo_registro or ultimo_registro.tipo_registro == 'salida':
-        return Response({'error': 'Debes marcar entrada primero.'}, 
-                       status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            'error': 'Debes marcar entrada primero.'
+        }, status=status.HTTP_400_BAD_REQUEST)
     
     registro = RegistroAsistencia.objects.create(
         usuario=usuario,
@@ -97,16 +80,14 @@ def marcar_salida_view(request):
     })
 
 @api_view(['GET'])
-@permission_classes([AllowAny])  
+@permission_classes([IsAuthenticated])  # 🔹 Cambio de AllowAny a IsAuthenticated
 def reporte_atrasos_view(request):
-    is_auth, usuario = check_authenticated(request)
-    if not is_auth:
-        return Response({'error': 'Debes estar logueado'}, 
-                      status=status.HTTP_401_UNAUTHORIZED)
+    usuario = request.user  # 🔹 Directo desde request.user
     
-    if not usuario.es_administrador(): #type: ignore
-        return Response({'error': 'Solo administradores pueden ver reportes'}, 
-                       status=status.HTTP_403_FORBIDDEN)
+    if not usuario.es_administrador():
+        return Response({
+            'error': 'Solo administradores pueden ver reportes'
+        }, status=status.HTTP_403_FORBIDDEN)
     
     hora_limite = time(9, 30)
     atrasos = RegistroAsistencia.objects.filter(
@@ -121,16 +102,14 @@ def reporte_atrasos_view(request):
     })
 
 @api_view(['GET'])
-@permission_classes([AllowAny])  
+@permission_classes([IsAuthenticated])  # 🔹 Cambio de AllowAny a IsAuthenticated
 def reporte_salidas_anticipadas_view(request):
-    is_auth, usuario = check_authenticated(request)
-    if not is_auth:
-        return Response({'error': 'Debes estar logueado'}, 
-                      status=status.HTTP_401_UNAUTHORIZED)
+    usuario = request.user  # 🔹 Directo desde request.user
     
-    if not usuario.es_administrador(): #type: ignore
-        return Response({'error': 'Solo administradores pueden ver reportes'}, 
-                       status=status.HTTP_403_FORBIDDEN)
+    if not usuario.es_administrador():
+        return Response({
+            'error': 'Solo administradores pueden ver reportes'
+        }, status=status.HTTP_403_FORBIDDEN)
     
     hora_limite = time(17, 30)
     salidas_anticipadas = RegistroAsistencia.objects.filter(
@@ -145,23 +124,22 @@ def reporte_salidas_anticipadas_view(request):
     })
 
 @api_view(['GET'])
-@permission_classes([AllowAny])  
+@permission_classes([IsAuthenticated])  # 🔹 Cambio de AllowAny a IsAuthenticated
 def reporte_inasistencias_view(request):
-    is_auth, usuario = check_authenticated(request)
-    if not is_auth:
-        return Response({'error': 'Debes estar logueado'}, 
-                      status=status.HTTP_401_UNAUTHORIZED)
+    usuario = request.user  # 🔹 Directo desde request.user
     
-    if not usuario.es_administrador(): #type: ignore
-        return Response({'error': 'Solo administradores pueden ver reportes'}, 
-                       status=status.HTTP_403_FORBIDDEN)
+    if not usuario.es_administrador():
+        return Response({
+            'error': 'Solo administradores pueden ver reportes'
+        }, status=status.HTTP_403_FORBIDDEN)
     
     fecha_str = request.GET.get('fecha', str(date.today()))
     try:
         fecha_consulta = datetime.strptime(fecha_str, '%Y-%m-%d').date()
     except ValueError:
-        return Response({'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}, 
-                       status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            'error': 'Formato de fecha inválido. Use YYYY-MM-DD'
+        }, status=status.HTTP_400_BAD_REQUEST)
     
     usuarios_con_registro = RegistroAsistencia.objects.filter(
         fecha_hora__date=fecha_consulta
