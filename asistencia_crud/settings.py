@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 import dj_database_url
+from datetime import timedelta
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -49,6 +50,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_yasg',
     'corsheaders',
+    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
 ]
 
 MIDDLEWARE = [
@@ -72,6 +75,7 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -131,9 +135,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 if not DEBUG:
-    
     STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
@@ -141,17 +143,45 @@ if not DEBUG:
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Custom User Model
+AUTH_USER_MODEL = 'usuarios.Usuario'
+
+# REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
-
-    # 'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
 }
 
+# JWT Configuration
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),      
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),        
+    'ROTATE_REFRESH_TOKENS': True,                       
+    'BLACKLIST_AFTER_ROTATION': True,                    
+    'UPDATE_LAST_LOGIN': True,
+    
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    
+    'AUTH_HEADER_TYPES': ('Bearer',),                    
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
+
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
+
+    'JTI_CLAIM': 'jti',
+}
+
+# CORS Configuration
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000", 
@@ -159,33 +189,35 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",
 ]
 
-CORS_ALLOW_CREDENTIALS = True  # ← ESTO ES CRÍTICO
+# Con JWT ya no necesitas cookies de sesión para la API
+CORS_ALLOW_CREDENTIALS = False
 
+# Agregar dominio de producción a CORS si existe
+if not DEBUG and RENDER_EXTERNAL_HOSTNAME:
+    CORS_ALLOWED_ORIGINS.append(f"https://{RENDER_EXTERNAL_HOSTNAME}")
+
+# Session Configuration (para el admin de Django)
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_COOKIE_NAME = "sessionid"
 SESSION_COOKIE_AGE = 1209600  # 2 semanas
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = "None"   # Crucial para cross-origin
-SESSION_COOKIE_SECURE = True       # Porque en render ya es HTTPS
 
-CSRF_COOKIE_SAMESITE = "None"
-CSRF_COOKIE_SECURE = True
+# CSRF Configuration
+CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SECURE = not DEBUG  # Solo HTTPS en producción
 
-
-
-
+# Swagger Configuration para JWT
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {
-        'Session': {
+        'Bearer': {
             'type': 'apiKey',
-            'name': 'sessionid',      
-            'in': 'cookie'            
+            'name': 'Authorization',
+            'in': 'header',
+            'description': 'JWT Authorization header using the Bearer scheme. Example: "Authorization: Bearer {token}"'
         }
     },
-    'USE_SESSION_AUTH': True,
-    'LOGIN_URL': '/api/usuarios/auth/login/',    
-    'LOGOUT_URL': '/api/usuarios/auth/logout/',  
+    'USE_SESSION_AUTH': False,  # Usar JWT en lugar de sesiones
 }
 
 # Para desarrollo, permite que la documentación sea accesible
@@ -193,5 +225,11 @@ if DEBUG:
     SWAGGER_SETTINGS['PERMISSIONS'] = {
         'AllowAny': 'rest_framework.permissions.AllowAny',
     }
-    
-AUTH_USER_MODEL = 'usuarios.Usuario'
+
+# Configuración adicional de seguridad para producción
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
