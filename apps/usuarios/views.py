@@ -10,12 +10,13 @@ from .models import Usuario
 from .serializers import UsuarioSerializer, UsuarioCreateSerializer, UsuarioUpdateSerializer, LoginSerializer
 
 class UsuarioViewSet(viewsets.ModelViewSet):
-    queryset = Usuario.objects.filter(activo=True)
+    # 🔹 CAMBIO IMPORTANTE: Obtener todos los usuarios, no solo activos
+    queryset = Usuario.objects.all().order_by('id')
     serializer_class = UsuarioSerializer
     permission_classes = [IsAuthenticated]
-    authentication_classes = [JWTAuthentication]  # 🔹 Cambio principal
+    authentication_classes = [JWTAuthentication]
        
-    def get_serializer_class(self): #type: ignore
+    def get_serializer_class(self): # type: ignore
         if self.action == 'create':
             return UsuarioCreateSerializer
         elif self.action in ['update', 'partial_update']:
@@ -32,51 +33,81 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         if not request.user.es_administrador():
             return Response({'error': 'Solo administradores pueden crear usuarios'},
                             status=status.HTTP_403_FORBIDDEN)
-        return super().create(request, *args, **kwargs)
+        
+        try:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            usuario = serializer.save()
+            
+            # 🔹 Retornar el usuario con el UsuarioSerializer completo
+            response_data = UsuarioSerializer(usuario).data
+            return Response(response_data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
      
     def update(self, request, *args, **kwargs):
         if not request.user.es_administrador():
             return Response({'error': 'Solo administradores pueden actualizar usuarios'},
                             status=status.HTTP_403_FORBIDDEN)
-        return super().update(request, *args, **kwargs)
+        
+        try:
+            partial = kwargs.pop('partial', False)
+            instance = self.get_object()
+            serializer = self.get_serializer(instance, data=request.data, partial=partial)
+            serializer.is_valid(raise_exception=True)
+            usuario = serializer.save()
+            
+            # 🔹 Retornar el usuario actualizado con el UsuarioSerializer completo
+            response_data = UsuarioSerializer(usuario).data
+            return Response(response_data)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
      
     def destroy(self, request, *args, **kwargs):
         if not request.user.es_administrador():
             return Response({'error': 'Solo administradores pueden eliminar usuarios'},
                             status=status.HTTP_403_FORBIDDEN)
-        usuario_obj = self.get_object()
-        usuario_obj.activo = False
-        usuario_obj.save()
-        return Response({'success': 'Usuario desactivado correctamente'})
+        
+        try:
+            usuario_obj = self.get_object()
+            # 🔹 Soft delete - marcar como inactivo en lugar de eliminar
+            usuario_obj.activo = False
+            usuario_obj.save()
+            return Response({'success': 'Usuario desactivado correctamente'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
-    serializer = LoginSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-     
-    email = serializer.validated_data['email'] #type: ignore
-    password = serializer.validated_data['password'] #type: ignore
-     
-    user = authenticate(request, username=email, password=password)
-     
-    if user is None:
-        return Response({'error': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
-    
-    if not user.activo: #type: ignore
-        return Response({'error': 'Usuario inactivo'}, status=status.HTTP_401_UNAUTHORIZED)
-     
-    # 🔹 Generar tokens JWT
-    refresh = RefreshToken.for_user(user)
-    
-    return Response({
-        'success': True,
-        'usuario': UsuarioSerializer(user).data,
-        'tokens': {
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
-        }
-    })
+    try:
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+         
+        email = serializer.validated_data['email'] # type: ignore
+        password = serializer.validated_data['password'] # type: ignore
+          
+        user = authenticate(request, username=email, password=password)
+         
+        if user is None:
+            return Response({'error': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        if not user.activo: # type: ignore
+            return Response({'error': 'Usuario inactivo'}, status=status.HTTP_401_UNAUTHORIZED)
+         
+        # 🔹 Generar tokens JWT
+        refresh = RefreshToken.for_user(user)
+        
+        return Response({
+            'success': True,
+            'usuario': UsuarioSerializer(user).data,
+            'tokens': {
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            }
+        })
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
