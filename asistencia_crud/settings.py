@@ -187,6 +187,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000", 
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "https://front-asistencia.vercel.app",
 ]
 
 # Con JWT ya no necesitas cookies de sesión para la API
