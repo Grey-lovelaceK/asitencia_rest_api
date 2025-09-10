@@ -103,7 +103,7 @@ def reporte_atrasos_view(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])  # 🔹 Cambio de AllowAny a IsAuthenticated
-def reporte_salidas_anticipadas_view(request):
+def reporte_salidas_anticipadas_view(request): # type: ignore
     usuario = request.user  # 🔹 Directo desde request.user
     
     if not usuario.es_administrador():
@@ -157,4 +157,89 @@ def reporte_inasistencias_view(request):
         'fecha': fecha_str,
         'usuarios_inasistentes': serializer.data,
         'total': usuarios_sin_registro.count()
+    })
+    
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def todos_registros_view(request):
+    """Vista para obtener todos los registros de asistencia con filtros opcionales"""
+    usuario = request.user
+    
+    if not usuario.es_administrador():
+        return Response({
+            'error': 'Solo administradores pueden ver todos los registros'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    # Obtener parámetros de filtro
+    fecha = request.GET.get('fecha')
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+    usuario_id = request.GET.get('usuario_id')
+    
+    # Construir queryset base
+    queryset = RegistroAsistencia.objects.all()
+    
+    # Aplicar filtros
+    if fecha:
+        try:
+            fecha_consulta = datetime.strptime(fecha, '%Y-%m-%d').date()
+            queryset = queryset.filter(fecha_hora__date=fecha_consulta)
+        except ValueError:
+            return Response({
+                'error': 'Formato de fecha inválido. Use YYYY-MM-DD'
+            }, status=status.HTTP_400_BAD_REQUEST)
+    
+    if fecha_inicio and fecha_fin:
+        try:
+            inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
+            fin = datetime.strptime(fecha_fin, '%Y-%m-%d').date()
+            queryset = queryset.filter(fecha_hora__date__range=[inicio, fin])
+        except ValueError:
+            return Response({
+                'error': 'Formato de fecha inválido para rango. Use YYYY-MM-DD'
+            }, status=status.HTTP_400_BAD_REQUEST)
+    
+    if usuario_id:
+        queryset = queryset.filter(usuario_id=usuario_id)
+    
+    # Ordenar por fecha más reciente
+    registros = queryset.order_by('-fecha_hora')
+    
+    # Serializar
+    serializer = RegistroAsistenciaSerializer(registros, many=True)
+    
+    return Response({
+        'registros': serializer.data,
+        'total': registros.count(),
+        'filtros_aplicados': {
+            'fecha': fecha,
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
+            'usuario_id': usuario_id
+        }
+    })
+
+# También asegúrate de que el endpoint de salidas anticipadas esté funcionando
+# Si no está en tus URLs, agrégalo:
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def reporte_salidas_anticipadas_view(request):
+    usuario = request.user
+    
+    if not usuario.es_administrador():
+        return Response({
+            'error': 'Solo administradores pueden ver reportes'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    hora_limite = time(17, 30)  # 5:30 PM
+    salidas_anticipadas = RegistroAsistencia.objects.filter(
+        tipo_registro='salida',
+        fecha_hora__time__lt=hora_limite
+    ).order_by('-fecha_hora')
+    
+    serializer = RegistroAsistenciaSerializer(salidas_anticipadas, many=True)
+    return Response({
+        'reportes': serializer.data,
+        'total': salidas_anticipadas.count()
     })
